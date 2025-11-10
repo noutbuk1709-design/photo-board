@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Photo Board</title>
+<style>
+  body { font-family: Arial, sans-serif; max-width: 800px; margin: auto; padding: 20px; }
+  form { margin-bottom: 20px; }
+  #posts div { border: 1px solid #ccc; padding: 10px; margin-bottom: 15px; position: relative; }
+  #posts img { max-width: 100%; height: auto; display: block; margin-bottom: 5px; }
+  button.delete { position: absolute; top: 10px; right: 10px; background:red; color:white; border:none; padding:5px; cursor:pointer; }
+</style>
+</head>
+<body>
+<h1>Photo Board</h1>
+
+<form id="uploadForm">
+  <input type="file" id="photo" name="photo" required>
+  <input type="text" id="description" name="description" placeholder="Описание" required>
+  <button type="submit">Upload</button>
+</form>
+
+<div id="status" style="margin:8px 0;color:#333;"></div>
+<div id="posts"></div>
+
+<script>
+const form = document.getElementById("uploadForm");
+const postsDiv = document.getElementById("posts");
+const statusDiv = document.getElementById("status");
+const uploadBtn = form.querySelector("button");
+
+async function loadPosts() {
+  const res = await fetch("/api/upload");
+  const arr = await res.json();
+  postsDiv.innerHTML = arr.map(p => `
+    <div data-id="${p.id}">
+      <img src="${p.imageUrl}" alt="">
+      <p>${p.description}</p>
+      <small>${new Date(p.created_at).toLocaleString()}</small>
+      <button class="delete">Удалить</button>
+    </div>
+  `).join("");
+
+  // Навешиваем обработчик кнопок Delete
+  postsDiv.querySelectorAll(".delete").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const div = btn.parentElement;
+      const id = div.getAttribute("data-id");
+      if (!confirm("Удалить этот пост?")) return;
+      btn.disabled = true;
+      try {
+        const res = await fetch(`/api/upload?id=${id}`, { method: "DELETE" });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Ошибка удаления");
+        await loadPosts();
+      } catch (err) {
+        console.error(err);
+        alert("Ошибка удаления: " + err.message);
+        btn.disabled = false;
+      }
+    });
+  });
+}
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  statusDiv.textContent = "Подождите, идёт загрузка...";
+  uploadBtn.disabled = true;
+
+  const fd = new FormData(form);
+  try {
+    const res = await fetch("/api/upload", { method: "POST", body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Ошибка загрузки");
+    form.reset();
+    statusDiv.textContent = "Загрузка завершена";
+    await loadPosts();
+  } catch (err) {
+    console.error(err);
+    statusDiv.textContent = "Ошибка загрузки: " + err.message;
+  } finally {
+    uploadBtn.disabled = false;
+  }
+});
+
+// Загружаем посты при открытии страницы
+loadPosts();
+</script>
+</body>
+</html>

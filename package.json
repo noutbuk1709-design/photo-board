@@ -1,0 +1,9 @@
+{
+  "name": "photo-board",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "formidable": "^2.1.1",
+    "imgbb-uploader": "^1.5.1"
+  }
+}
